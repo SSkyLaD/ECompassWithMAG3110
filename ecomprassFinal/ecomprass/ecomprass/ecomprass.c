@@ -24,8 +24,6 @@ uint8_t g_mag_addr_found = 0x00;
 volatile bool completionFlag = false;
 volatile bool nakFlag = false;
 
-
-
 static void i2c_master_callback(I2C_Type *base, i2c_master_handle_t *handle, status_t status, void *userData)
 {
     /* Signal transfer success when received success status. */
@@ -107,7 +105,7 @@ void blinkLedRed(void);
 void blinkLedGreen(void);
 void initSwitch(void);
 void PORTC_PORTD_IRQHandler(void) ;
-
+int16_t calculateHeading(int16_t x, int16_t y, int16_t xMax, int16_t yMax, int16_t xMin, int16_t yMin); 
 
 int16_t calculateHeading(int16_t x, int16_t y, int16_t xMax, int16_t yMax, int16_t xMin, int16_t yMin) {
 		int16_t xoffset = (xMax + xMin) / 2;
@@ -141,11 +139,8 @@ void displayHeading(int heading) {
     SLCD_WriteMsg((unsigned char *)buffer);  
 }
 
-
-
-
 void initLed(void) {
-    SIM->SCGC5 |= (1 << 13); 
+    SIM->SCGC5 |= (1 << 13) | (1 << 12); 
     PORTE->PCR[29] = (1 << 8); 
 		PORTD->PCR[5] = (1 << 8);
     PTE->PDDR |= (1 << 29);
@@ -165,8 +160,7 @@ void SysTick_Handler (void) { // SysTick interrupt Handler
 }
 
 void Delay(uint32_t TICK) {
-    uint32_t startTick = msTicks;
-    while ((msTicks - startTick) < TICK);
+    while (msTicks < TICK);
 }
 
 void blinkLedRed(void)
@@ -175,7 +169,7 @@ void blinkLedRed(void)
 	PTE -> PCOR = (1<<29);
 	Delay(249);
 	PTE -> PSOR = (1<<29);
-	Delay(249);;	
+	Delay(249);	
 }
 
 void blinkLedGreen(void)
@@ -186,8 +180,6 @@ void blinkLedGreen(void)
 	PTD -> PSOR = (1<<5);
 	Delay(499);	
 }
-
-
 
 void initSwitch(void) 
 {
@@ -201,12 +193,7 @@ void initSwitch(void)
   PORTC->PCR[12] |= (1 << 17) | (1 << 19); 
 	NVIC_ClearPendingIRQ(31);
 	NVIC_EnableIRQ(31);
-}
-
-void initNVIC(void) {
-    NVIC_ClearPendingIRQ(PORTC_PORTD_IRQn);
-    NVIC_EnableIRQ(PORTC_PORTD_IRQn);
-    NVIC_SetPriority(PORTC_PORTD_IRQn, 2);
+	NVIC_SetPriority(PORTC_PORTD_IRQn, 2);
 }
 
 void PORTC_PORTD_IRQHandler(void) 
@@ -244,21 +231,19 @@ void calibration(int16_t *xMax, int16_t *yMax, int16_t *xMin, int16_t *yMin)
         write_reg = MAG3110_CTRL_REG1;
         databyte = 0x01; // Active mode
         I2C_WriteMagReg(I2C0, 0x0E, write_reg, databyte);
-
         
         for (int i = 0; i <300; i++) {
 						I2C_ReadMagRegs(I2C0, 0xE, 0x01, readBuff, 6);
 
-         x = (int16_t)((readBuff[0] << 8) | readBuff[1]);
-         y = (int16_t)((readBuff[2] << 8) | readBuff[3]);
-         z = (int16_t)((readBuff[4] << 8) | readBuff[5]);
+						x = (int16_t)((readBuff[0] << 8) | readBuff[1]);
+						y = (int16_t)((readBuff[2] << 8) | readBuff[3]);
+						z = (int16_t)((readBuff[4] << 8) | readBuff[5]);
 					
-					if (x > *xMax) *xMax = x;
-          if (x < *xMin) *xMin = x;
-          if (y > *yMax) *yMax = y;
-          if (y < *yMin) *yMin = y;
-					Delay(50);
-					
+						if (x > *xMax) *xMax = x;
+						if (x < *xMin) *xMin = x;
+						if (y > *yMax) *yMax = y;
+						if (y < *yMin) *yMin = y;
+						Delay(50);
 				}
 				SLCD_WriteMsg((unsigned char *) "done");	
 
@@ -270,7 +255,6 @@ int main(void)
     BOARD_InitPins();
     BOARD_BootClockRUN();
     BOARD_I2C_ConfigurePins();
-    BOARD_InitDebugConsole();
 		SLCD_Init();
 		initLed();
 		initSwitch();
