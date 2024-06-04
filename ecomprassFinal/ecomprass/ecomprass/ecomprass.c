@@ -203,19 +203,32 @@ void initSwitch(void)
 	NVIC_EnableIRQ(31);
 }
 
+void initNVIC(void) {
+    NVIC_ClearPendingIRQ(PORTC_PORTD_IRQn);
+    NVIC_EnableIRQ(PORTC_PORTD_IRQn);
+    NVIC_SetPriority(PORTC_PORTD_IRQn, 2);
+}
+
 void PORTC_PORTD_IRQHandler(void) 
 { 
 		uint32_t i = 0;
 		for (i = 0; i < 1000; i++);
-		if ((PTC -> PDIR & (1 << 3)) == 0) 		state = !state;
+	
 		if ((PTC -> PDIR & (1 << 12)) == 0) 	
 		{
+			PORTC->ISFR = (1 << 12);
 			PTE -> PSOR = (1<<29);
 			PTD -> PSOR = (1<<5);
 			SLCD_WriteMsg((unsigned char *)"   ");
 			while(1);
 		}
-		PORTC->PCR[3] |= (PORT_PCR_ISF_MASK);
+		
+		if ((PTC -> PDIR & (1 << 3)) == 0)
+		{
+			PORTC->ISFR = (1 << 3);
+			state = !state;
+		}
+		
 }
 
 // ham hieu chinh cam bien tu truong
